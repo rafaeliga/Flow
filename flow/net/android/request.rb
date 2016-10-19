@@ -25,12 +25,12 @@ module Net
         end
         
         if [:post, :put, :patch, :delete].include?(configuration[:method]) && configuration[:body]
-          if configuration[:photo]
+          if configuration[:attachment]
             boundary = Java::Lang::Long.toHexString(Java::Lang::System.currentTimeMillis())
             url_connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
             
             charset = "UTF-8";
-            binaryFile = configuration[:photo][:file]
+            binaryFile = configuration[:attachment][:file]
             crlf = "\r\n"
             
             output = url_connection.getOutputStream
@@ -50,7 +50,7 @@ module Net
             
             # Attaching the file
             writer.append("--" + boundary).append(crlf)
-            writer.append("Content-Disposition: form-data; name=\"#{configuration[:photo][:name]}\"; filename=\"" + binaryFile.getName() + "\"").append(crlf)
+            writer.append("Content-Disposition: form-data; name=\"#{configuration[:attachment][:name]}\"; filename=\"" + binaryFile.getName() + "\"").append(crlf)
             writer.append("Content-Type: " + Java::Net::URLConnection.guessContentTypeFromName(binaryFile.getName())).append(crlf)
             writer.append("Content-Transfer-Encoding: binary").append(crlf)
             writer.append(crlf).flush()
