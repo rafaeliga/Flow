@@ -11,7 +11,7 @@ module Net
       @options = options
       @session = session
       @configuration = {}
-
+      
       set_defaults
       configure
     end
@@ -23,11 +23,49 @@ module Net
         configuration[:headers].each do |key, value|
           url_connection.setRequestProperty(key, value)
         end
-
+        
         if [:post, :put, :patch, :delete].include?(configuration[:method]) && configuration[:body]
-          stream = url_connection.getOutputStream
-          body = json? ? configuration[:body].to_json : configuration[:body]
-          stream.write(Java::Lang::String.new(body).getBytes("UTF-8"))
+          if configuration[:photo]
+            boundary = Java::Lang::Long.toHexString(Java::Lang::System.currentTimeMillis())
+            url_connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
+            
+            charset = "UTF-8";
+            binaryFile = configuration[:photo][:file]
+            crlf = "\r\n"
+            
+            output = url_connection.getOutputStream
+            writer = Java::Io::PrintWriter.new(Java::Io::OutputStreamWriter.new(output, charset), true)
+            
+            # Attaching the params
+            model_name = configuration[:body].keys.first
+            
+            configuration[:body][model_name].map do |k, v|
+              param_name = "#{model_name}[#{k}]"
+              
+              writer.append("--" + boundary).append(crlf)
+              writer.append("Content-Disposition: form-data; name=\"#{param_name}\"").append(crlf)
+              writer.append("Content-Type: text/plain; charset=" + charset).append(crlf)
+              writer.append(crlf).append(v).append(crlf).flush()
+            end
+            
+            # Attaching the file
+            writer.append("--" + boundary).append(crlf)
+            writer.append("Content-Disposition: form-data; name=\"#{configuration[:photo][:name]}\"; filename=\"" + binaryFile.getName() + "\"").append(crlf)
+            writer.append("Content-Type: " + Java::Net::URLConnection.guessContentTypeFromName(binaryFile.getName())).append(crlf)
+            writer.append("Content-Transfer-Encoding: binary").append(crlf)
+            writer.append(crlf).flush()
+            Org::Apache::Commons::Io::FileUtils.copyFile(binaryFile, output)
+            output.flush()
+            writer.append(crlf).flush()
+            
+            # End of multipart/form-data
+            writer.append("--" + boundary + "--").append(crlf).flush()            
+          else
+            stream = url_connection.getOutputStream
+            body = json? ? configuration[:body].to_json : configuration[:body]
+            stream.write(Java::Lang::String.new(body).getBytes("UTF-8"))
+          end
+          
         end
 
         response_code = url_connection.getResponseCode
